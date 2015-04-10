@@ -1,0 +1,88 @@
+<html>
+  <head>
+    <title>Hello Vue.js</title>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/vue/0.11.5/vue.min.js"></script>
+    <script src="//code.jquery.com/jquery-2.1.3.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/showdown/0.3.1/showdown.min.js"></script>
+  </head>
+  <body>
+    <div id="comment-box">
+      <h1>Comments</h1>
+      <ul>
+        <li v-repeat="comments">{{ author }}: {{{ text | markdown }}}</li>
+      </ul>
+
+      <form>
+        <input type="text" placeholder="Your name" v-model="author">
+        <input type="text" placeholder="Say something..." v-model="text">
+        <input type="submit" value="Post" v-on="click: handleSubmit">
+      </form>
+    </div>
+
+    <script>
+      var COMMENT_API_ENDPOINT = '/comments.json';
+      var POLL_INTERVAL = 5000;
+
+      var converter = new Showdown.converter();
+
+      Vue.filter('markdown', function(value) {
+        return converter.makeHtml(value);
+      });
+
+      var commentBox = new Vue({
+        el: '#comment-box',
+        data: {
+          comments: [],
+          author: '',
+          text: ''
+        },
+        created: function() {
+          this.loadCommentsFromServer();
+          setInterval(this.loadCommentsFromServer, POLL_INTERVAL);
+        },
+        methods: {
+          loadCommentsFromServer: function() {
+            $.ajax({
+              url: COMMENT_API_ENDPOINT,
+              dataType: 'json',
+              success: function(data) {
+                this.comments = data;
+              }.bind(this),
+              error: function(xhr, status, err) {
+                console.error(COMMENT_API_ENDPOINT, status, err.toString());
+              }.bind(this)
+            });
+          },
+          sendCommentToServer: function(comment) {
+            $.ajax({
+              url: COMMENT_API_ENDPOINT,
+              dataType: 'json',
+              type: 'POST',
+              data: comment,
+              success: function(data) {
+                this.comments = data;
+              }.bind(this),
+              error: function(xhr, status, err) {
+                console.error(COMMENT_API_ENDPOINT, status, err.toString());
+              }.bind(this)
+            });
+          },
+          handleSubmit: function(e) {
+            e.preventDefault();
+            var author = this.author.trim();
+            var text = this.text.trim();
+            if (!author || !text) {
+              return;
+            }
+            var comment = { author: author, text: text };
+            this.comments.push(comment);
+            this.sendCommentToServer(comment);
+            this.author = '';
+            this.text = '';
+            return;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
